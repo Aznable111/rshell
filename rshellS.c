@@ -87,12 +87,14 @@ int main(int argc, char *argv[]){
 				break;
 			}
 			receive[bytes]='\0';
+			if(DEBUG) printf("Receive %s, shifting to buf", receive);
 			strcpy(cmdbuf, receive);
 			ptr=strchr(cmdbuf, '\n');
 			*ptr='\0';
 			
 			//download
-			if(strncmp(strtok(cmdbuf," "), "download ", 9)){
+			if(DEBUG) printf("Recieved %s\n", cmdbuf);
+			if(strncmp(strtok(cmdbuf," "), "download", 8)){
 		 		FILE *fp = fopen(strtok(NULL," "),"r");
 		 		while (fgets(sendbuf, 4096, fp) != NULL){
 		 			if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
