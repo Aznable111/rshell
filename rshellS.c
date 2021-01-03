@@ -7,7 +7,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#define DEBUG 1
+#define DEBUG 0
 
 /* TO DO:
  * 1. Redirect STDERR to STDOUT just in case, to send back to client --DONE!!
