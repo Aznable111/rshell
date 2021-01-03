@@ -54,32 +54,40 @@ int main(int argc, char *argv[]){
 	printf("--shell%s ", (rflag==1) ? "#" : "$");
 	fgets(userin, 2047, stdin);
 	//printf("you inputted: %s", userin);
-    //SEND shell command
-    if(strncmp(userin, "exit", 4)==0) break;
+    //CLIENT SIDE COMMAND CHECK IF ELSE
+	if(strncmp(userin, "exit", 4)==0) break;
     
-    if(strncmp(userin, "help", 4)==0){
+    	else if(strncmp(userin, "help", 4)==0){
 		printf("download [Absolute file path] #Command handled on server side\n");
 		printf("exit: disconnects from rshellS\n");
 		printf("help: prints this statement\n");
 	}
-	/* if(strncmp(userin, "download ", 9)==0){
-	 * 		fopen(CREATE LOCATION TO DOWNLOAD FILE
-	 * 
-	 *      send(FULL USERIN)
-	 *      printf(downloading %s);
-	 * 		while(1){
-	 * 			if(recv()=="000xxx000") break;
-	 * 			recv()
-	 * 			append recv() to file
-	 * 			
-	 * 		}
-	 * 		printf(Complete);
-	 * 		fclose(DOWNLOAD LOCATION);
-	 * }
-	 */
-	else{
+	else if(strncmp(strtok(userin," "), "download", 8)==0){
+    		FILE *fp = fopen(strtok(NULL," "),"a");
+ 
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
-				perror("send");
+        		perror("send");
+        	}		
+		while(1){
+ 			if((bytes = recv(sockfd, receive, 99, 0)) == -1){
+                		close(sockfd);
+                        	perror("Recv Error");
+                        	return -1;
+			}
+                	receive[bytes]='\0';
+                	if(strncmp(receive, "000xxx000", 9)==0){
+                		//printf("RECIEVED FINAL TERMINATOR\n");
+                        	break;
+                	}
+			fputs(receive,fp);
+ 		}
+ 		printf("Complete");
+		fclose(fp);
+    	}
+	//IF NO LOCAL OPTION SEND AS REMOTE SHELL COMMAND
+    	else{
+		if(send(sockfd, userin, strlen(userin),0)==-1) {
+			perror("send");
 		}
 			
 	//RECIEVE output of command
@@ -87,7 +95,8 @@ int main(int argc, char *argv[]){
 			if((bytes = recv(sockfd, receive, 99, 0)) == -1){
 				close(sockfd);
 				perror("Recv Error");
-				return -1;}
+				return -1;
+			}
 			receive[bytes]='\0';
 			if(strncmp(receive, "000xxx000", 9)==0){
 				//printf("RECIEVED FINAL TERMINATOR\n");
