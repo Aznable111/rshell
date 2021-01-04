@@ -11,11 +11,12 @@ int main(int argc, char *argv[]){
   struct addrinfo hints, *addr;
   int bytes, sockfd, status;
   int rflag=0;
+  char *ptr;
   char receive[100];
-  char userin[2047];
+  char userin[2047],tokuserin[2047],file[2047];
 
   if(argc!=3) {
-	printf("Usage: ./rshellC [IP] [Port]\n");
+	printf("Usage: %s [IP] [Port]\n", argv[0]);
 	return -1;
   }
   memset(&hints,0,sizeof hints);
@@ -53,43 +54,54 @@ int main(int argc, char *argv[]){
   while (1){
 	printf("--shell%s ", (rflag==1) ? "#" : "$");
 	fgets(userin, 2047, stdin);
+	strcpy(tokuserin, userin);
 	//printf("you inputted: %s", userin);
     //CLIENT SIDE COMMAND CHECK IF ELSE
 	if(strncmp(userin, "exit", 4)==0) break;
     
-    	else if(strncmp(userin, "help", 4)==0){
+    else if(strncmp(userin, "help", 4)==0){
 		printf("download [Absolute file path] #Command handled on server side\n");
 		printf("exit: disconnects from rshellS\n");
 		printf("help: prints this statement\n");
 	}
-	else if(strncmp(strtok(userin," "), "download", 8)==0){
-    		FILE *fp = fopen(strtok(NULL," "),"a");
+	else if(strncmp(strtok(tokuserin," "), "download", 8)==0){
+		printf("Setting up Download\n");
+		strcpy(file,strtok(NULL," ")); //Eliminate Newline from File name for local open
+		ptr=strchr(file,'\n');
+		*ptr='\0';
+    	FILE *fp = fopen(file,"a");
  
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
         		perror("send");
-        	}		
+        }		
 		while(1){
  			if((bytes = recv(sockfd, receive, 99, 0)) == -1){
                 		close(sockfd);
                         	perror("Recv Error");
                         	return -1;
 			}
-                	receive[bytes]='\0';
-                	if(strncmp(receive, "000xxx000", 9)==0){
-                		//printf("RECIEVED FINAL TERMINATOR\n");
-                        	break;
-                	}
+            receive[bytes]='\0';
+            if(strncmp(receive, "000xxx000", 9)==0){
+                	//printf("RECIEVED FINAL TERMINATOR\n");
+                    break;
+            }
 			fputs(receive,fp);
  		}
  		printf("Complete");
 		fclose(fp);
-    	}
+    }
+	//Just for testing
+	
 	//IF NO LOCAL OPTION SEND AS REMOTE SHELL COMMAND
-    	else{
+    else{
+		printf("Sending Command\n");
+		char * token;
+		while(token!=NULL){
+			token = strtok(NULL," ");
+		}
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
 			perror("send");
 		}
-			
 	//RECIEVE output of command
 		while(1){
 			if((bytes = recv(sockfd, receive, 99, 0)) == -1){
@@ -99,9 +111,10 @@ int main(int argc, char *argv[]){
 			}
 			receive[bytes]='\0';
 			if(strncmp(receive, "000xxx000", 9)==0){
-				//printf("RECIEVED FINAL TERMINATOR\n");
-				break;
-			}
+					//printf("RECIEVED FINAL TERMINATOR\n");
+					break;
+				}
+
 			printf("%s", receive);
 		}
 	}

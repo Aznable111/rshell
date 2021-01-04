@@ -7,7 +7,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#define DEBUG 0
+#define DEBUG 1
 
 /* TO DO:
  * 1. Redirect STDERR to STDOUT just in case, to send back to client --DONE!!
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]){
 	struct addrinfo hints, *res;
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof(their_addr);
-	char paddr[INET_ADDRSTRLEN], receive[100], cmdbuf[100], sendbuf[255], currentuser[99];
+	char paddr[INET_ADDRSTRLEN], receive[100], cmdbuf[100], tokcmdbuf[100], cmdtok[100], sendbuf[255], currentuser[99];
 	char *ptr;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
@@ -34,7 +34,7 @@ int main(int argc, char *argv[]){
 	hints.ai_flags = AI_PASSIVE;
 	
 	if(argc != 2){
-		printf("Usage: ./rshellS [port]\n");
+		printf("Usage: %s [port]\n",argv[0]);
 		return -1;
 	}
 	//Get current running user
@@ -77,6 +77,7 @@ int main(int argc, char *argv[]){
 			perror("send");
 		}
 		while(1){ //connection loop
+			if(DEBUG) printf("Entered Connection Loop\n");
 			if((bytes = recv(new_fd, receive, 99, 0)) == -1){
 				close(new_fd);
 				perror("Recv Error");
@@ -86,15 +87,28 @@ int main(int argc, char *argv[]){
 				if(DEBUG) printf("Client Disconnect\n");
 				break;
 			}
+
+
+			if(DEBUG) printf("Recieved %s appending null byte\n", receive);
 			receive[bytes]='\0';
-			if(DEBUG) printf("Receive %s, shifting to buf", receive);
+			if(DEBUG) printf("Receive %s, shifting to buf\n", receive);
 			strcpy(cmdbuf, receive);
 			ptr=strchr(cmdbuf, '\n');
 			*ptr='\0';
-			
+			if(DEBUG) printf("Buffer with removed new line %s\n", cmdbuf);
+			strcpy(tokcmdbuf,cmdbuf);
 			//download
-			if(DEBUG) printf("Recieved %s\n", cmdbuf);
-			if(strncmp(strtok(cmdbuf," "), "download", 8)){
+			if(DEBUG) printf("Buffer %s and tokcmdbuf: %s\n", cmdbuf, tokcmdbuf);
+			strcpy(cmdtok,strtok(tokcmdbuf," "));
+			printf("cmdtok:%s\n",cmdtok);
+			if(cmdtok==NULL) strcpy(cmdtok,cmdbuf); //If unable to be tokenized by space compare whole string 
+			strncmp(cmdtok,"test",5);
+			printf("Passed strncmptest\n");
+
+
+
+			if(strncmp(cmdtok, "download",9)==0){
+				if(DEBUG) printf("Running as Download\n");
 		 		FILE *fp = fopen(strtok(NULL," "),"r");
 		 		while (fgets(sendbuf, 4096, fp) != NULL){
 		 			if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
@@ -106,9 +120,13 @@ int main(int argc, char *argv[]){
 					perror("send");
 				}
 		 		fclose(fp); 
-			 }
-			//commands
+			}
+
+
+
 			else{
+				if(DEBUG) printf("Running as command\n");
+				//printf("%s\n",strtok(NULL, " "));
 				strcat(cmdbuf, " 2>&1");
 				FILE *fp = popen(cmdbuf,"r");
 				while (fgets(sendbuf, 4096, fp) != NULL){
@@ -123,6 +141,8 @@ int main(int argc, char *argv[]){
 				if(DEBUG) printf("executed command %s", receive);
 				pclose(fp);
 			}
+
+
 		}
 		close(new_fd);
 	}
