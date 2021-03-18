@@ -10,11 +10,11 @@
 #define DEBUG 1
 
 /* TO DO:
- * 1. Redirect STDERR to STDOUT just in case, to send back to client --DONE!!
- * 2. Dont terminate after connection complete
- * 3. Create download and upload commands for file in client
+ * 1. Redirect STDERR to STDOUT just in case, to send back to client --Working
+ * 2. Dont terminate after connection complete --Working
+ * 3. Create download and upload commands for file in client --Download working
  * 4. figure out a better sleep timer for the termination string
- * 5. Debugger Mode in preprocessor --DONE!!
+ * 5. Debugger Mode in preprocessor --Working
  * 
  * Multithreading for each connection <-- may need to rebuild from the ground up
  * 

@@ -11,9 +11,10 @@ int main(int argc, char *argv[]){
   struct addrinfo hints, *addr;
   int bytes, sockfd, status;
   int rflag=0;
-  char *ptr;
+  char *file, *ptr;
+  FILE *fp;
   char receive[100];
-  char userin[2047],tokuserin[2047],file[2047];
+  char userin[2047],tokuserin[2047];
 
   if(argc!=3) {
 	printf("Usage: %s [IP] [Port]\n", argv[0]);
@@ -65,12 +66,18 @@ int main(int argc, char *argv[]){
 		printf("help: prints this statement\n");
 	}
 	else if(strncmp(strtok(tokuserin," "), "download", 8)==0){
-		printf("Setting up Download\n");
-		strcpy(file,strtok(NULL," ")); //Eliminate Newline from File name for local open
+		printf("Setting up Download with %s\n", userin);
+		file = strrchr(strtok(NULL," "), '/');
 		ptr=strchr(file,'\n');
 		*ptr='\0';
-    	FILE *fp = fopen(file,"a");
- 
+		printf("Creating Local File %s\n",file+1);
+		if (file != NULL){
+			fp = fopen(file+1,"w");
+		}
+		else {
+			printf("Issue with filename\n");
+			break;
+		}
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
         		perror("send");
         }		
@@ -87,7 +94,7 @@ int main(int argc, char *argv[]){
             }
 			fputs(receive,fp);
  		}
- 		printf("Complete");
+ 		printf("Complete\n");
 		fclose(fp);
     }
 	//Just for testing
