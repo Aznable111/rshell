@@ -6,15 +6,17 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <errno.h>
+#define DEBUG 1
 
 int main(int argc, char *argv[]){
   struct addrinfo hints, *addr;
   int bytes, sockfd, status;
   int rflag=0;
-  char *file, *ptr;
-  FILE *fp;
+  char *file, *ptr, sendbuf[255];
   char receive[100];
   char userin[2047],tokuserin[2047];
+  FILE *fp;
 
   if(argc!=3) {
 	printf("Usage: %s [IP] [Port]\n", argv[0]);
@@ -60,11 +62,16 @@ int main(int argc, char *argv[]){
     //CLIENT SIDE COMMAND CHECK IF ELSE
 	if(strncmp(userin, "exit", 4)==0) break;
     
+    //HELP
+    
     else if(strncmp(userin, "help", 4)==0){
 		printf("download [Absolute file path] #Command handled on server side\n");
+		printf("upload [Local file path] [Destination file path\n");
 		printf("exit: disconnects from rshellS\n");
 		printf("help: prints this statement\n");
 	}
+	//DOWNLOAD
+	
 	else if(strncmp(strtok(tokuserin," "), "download", 8)==0){
 		printf("Setting up Download with %s\n", userin);
 		file = strrchr(strtok(NULL," "), '/');
@@ -78,25 +85,54 @@ int main(int argc, char *argv[]){
 			printf("Issue with filename\n");
 			break;
 		}
+		printf("File created, reaching out to download\n");
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
         		perror("send");
         }		
 		while(1){
  			if((bytes = recv(sockfd, receive, 99, 0)) == -1){
-                		close(sockfd);
-                        	perror("Recv Error");
-                        	return -1;
+				close(sockfd);
+                perror("Recv Error");
+                return -1;
 			}
             receive[bytes]='\0';
             if(strncmp(receive, "000xxx000", 9)==0){
-                	//printf("RECIEVED FINAL TERMINATOR\n");
-                    break;
+                printf("RECIEVED FINAL TERMINATOR\n");
+				break;
             }
 			fputs(receive,fp);
  		}
  		printf("Complete\n");
 		fclose(fp);
     }
+	
+    else if(strncmp(tokuserin, "upload", 8)==0){
+		printf("Setting up Upload with %s\n", tokuserin);
+		char *filename;
+		filename=strtok(NULL, " ");
+		printf("Attempting to open:%s\n",filename);
+		fp = fopen(filename,"r");
+		if(fp != NULL){
+			printf("Success! Sending file\n");
+			if(send(sockfd, userin, strlen(userin),0)==-1) {
+        		perror("send");
+			}
+			while (fgets(sendbuf, 255, fp) != NULL){
+				if(send(sockfd, sendbuf, strlen(sendbuf), 0)<0){
+						perror("send");
+				}	
+			}
+			sleep(1);
+			if(send(sockfd, "000xxx000", 9, 0)<0){
+				perror("send");
+			}
+			fclose(fp); 
+		}
+		else{
+			printf("Unable to open file errno: %d\n", errno);
+		}
+	}
+    
 	//Just for testing
 	
 	//IF NO LOCAL OPTION SEND AS REMOTE SHELL COMMAND

