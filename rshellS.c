@@ -13,11 +13,13 @@
 /* TO DO:
  * 1. Redirect STDERR to STDOUT just in case, to send back to client --Working
  * 2. Dont terminate after connection complete --Working
- * 3. Create download and upload commands for file in client --Download working
+ * 3. Create download and upload commands for file in client --Working
  * 4. figure out a better sleep timer for the termination string
  * 5. Debugger Mode in preprocessor --Working
  * 
  * Multithreading for each connection <-- may need to rebuild from the ground up
+ * 
+ * INPUT VALIDATION -- Improved, Less likely to segfault, still kinda bad
  * 
  */
  
@@ -27,7 +29,7 @@ int main(int argc, char *argv[]){
 	struct addrinfo hints, *res;
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof(their_addr);
-	char paddr[INET_ADDRSTRLEN], receive[100], cmdbuf[100], tokcmdbuf[100], cmdtok[100], sendbuf[255], currentuser[99];
+	char paddr[INET_ADDRSTRLEN], receive[100], tokcmdbuf[100], cmdbuf[255], cmdtok[100], sendbuf[255], currentuser[99];
 	char *ptr;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
@@ -96,17 +98,14 @@ int main(int argc, char *argv[]){
 			receive[bytes]='\0';
 			if(DEBUG) printf("Receive %s, shifting to buf\n", receive);
 			strcpy(cmdbuf, receive);
-			ptr=strchr(cmdbuf, '\n');
-			*ptr='\0';
+			if((ptr=strchr(cmdbuf, '\n'))!=NULL) *ptr='\0';
 			if(DEBUG) printf("Buffer with removed new line %s\n", cmdbuf);
 			strcpy(tokcmdbuf,cmdbuf);
-			//download
 			if(DEBUG) printf("Buffer %s and tokcmdbuf: %s\n", cmdbuf, tokcmdbuf);
 			strcpy(cmdtok,strtok(tokcmdbuf," "));
 			if(DEBUG) printf("cmdtok:%s\n",cmdtok);
 			if(cmdtok==NULL) strcpy(cmdtok,cmdbuf); //If unable to be tokenized by space compare whole string 
-			//strncmp(cmdtok,"test",5);
-			//printf("Passed strncmptest\n");
+			
 
 
 			//DOWNLOAD
@@ -127,6 +126,9 @@ int main(int argc, char *argv[]){
 				}
 				else{
 					if(DEBUG) printf("fopen return null");
+					if(send(new_fd, "000FNF000", 9, 0)<0){
+						perror("send");
+					}
 				}
 			}
 			
@@ -157,7 +159,7 @@ int main(int argc, char *argv[]){
 			//SHELL COMMAND
 			else{
 				if(DEBUG) printf("Running as command\n");
-				//printf("%s\n",strtok(NULL, " "));
+				
 				strcat(cmdbuf, " 2>&1");
 				FILE *fp = popen(cmdbuf,"r");
 				while (fgets(sendbuf, 4096, fp) != NULL){

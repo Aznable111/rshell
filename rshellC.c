@@ -7,13 +7,13 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <errno.h>
-#define DEBUG 1
+#define DEBUG 1   
 
 int main(int argc, char *argv[]){
   struct addrinfo hints, *addr;
   int bytes, sockfd, status;
   int rflag=0;
-  char *file, *ptr, sendbuf[255];
+  char *file, sendbuf[255];
   char receive[100];
   char userin[2047],tokuserin[2047];
   FILE *fp;
@@ -61,7 +61,13 @@ int main(int argc, char *argv[]){
 	//printf("you inputted: %s", userin);
     //CLIENT SIDE COMMAND CHECK IF ELSE
 	if(strncmp(userin, "exit", 4)==0) break;
-    
+	
+	
+    else if(strtok(tokuserin, "\n")==NULL){
+		//printf("TOKUSERIN: %s\n", tokuserin);
+		continue;
+	}
+	
     //HELP
     
     else if(strncmp(userin, "help", 4)==0){
@@ -71,12 +77,23 @@ int main(int argc, char *argv[]){
 		printf("help: prints this statement\n");
 	}
 	//DOWNLOAD
-	
-	else if(strncmp(strtok(tokuserin," "), "download", 8)==0){
+	else if (strtok(tokuserin, " ")==NULL){
+		continue;
+	}
+	else if(strncmp(tokuserin, "download", 8)==0){
 		printf("Setting up Download with %s\n", userin);
-		file = strrchr(strtok(NULL," "), '/');
-		ptr=strchr(file,'\n');
-		*ptr='\0';
+		if((file=strtok(NULL, " "))!=NULL){
+			if((file=strrchr(file, '/'))==NULL){
+				printf("Incompatable file name\n");
+				continue;
+			}
+		}
+		else{
+			printf("Need file to download\n");
+			continue;
+		}
+		//ptr=strchr(file,'\n'); Nullified with initial \n strtok
+		//*ptr='\0';
 		printf("Creating Local File %s\n",file+1);
 		if (file != NULL){
 			fp = fopen(file+1,"w");
@@ -85,7 +102,7 @@ int main(int argc, char *argv[]){
 			printf("Issue with filename\n");
 			break;
 		}
-		printf("File created, reaching out to download\n");
+		//printf("File created, reaching out to download\n");
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
         		perror("send");
         }		
@@ -96,8 +113,13 @@ int main(int argc, char *argv[]){
                 return -1;
 			}
             receive[bytes]='\0';
+            if(strncmp(receive, "000FNF000", 9)==0){
+				printf("Target file not found\n");
+				remove(file+1);
+				break;
+			}
             if(strncmp(receive, "000xxx000", 9)==0){
-                printf("RECIEVED FINAL TERMINATOR\n");
+                //,lprintf("RECIEVED FINAL TERMINATOR\n");
 				break;
             }
 			fputs(receive,fp);
@@ -137,10 +159,14 @@ int main(int argc, char *argv[]){
 	
 	//IF NO LOCAL OPTION SEND AS REMOTE SHELL COMMAND
     else{
-		printf("Sending Command\n");
+		//printf("Sending Command\n");
 		char * token;
 		while(token!=NULL){
 			token = strtok(NULL," ");
+		}
+		if(strlen(userin)>99){
+			printf("Too large an input\n");
+			continue;
 		}
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
 			perror("send");
