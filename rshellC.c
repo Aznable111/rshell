@@ -72,7 +72,7 @@ int main(int argc, char *argv[]){
     
     else if(strncmp(userin, "help", 4)==0){
 		printf("download [Absolute file path] #Command handled on server side\n");
-		printf("upload [Local file path] [Destination file path\n");
+		printf("upload [Local file path] [Destination file path]\n");
 		printf("exit: disconnects from rshellS\n");
 		printf("help: prints this statement\n");
 	}
@@ -96,11 +96,14 @@ int main(int argc, char *argv[]){
 		//*ptr='\0';
 		printf("Creating Local File %s\n",file+1);
 		if (file != NULL){
-			fp = fopen(file+1,"w");
+			if((fp=fopen(file+1,"w"))==NULL){
+				printf("Cannot locally create file\n");
+				continue;
+			}
 		}
 		else {
 			printf("Issue with filename\n");
-			break;
+			continue;
 		}
 		//printf("File created, reaching out to download\n");
 		if(send(sockfd, userin, strlen(userin),0)==-1) {
@@ -132,12 +135,23 @@ int main(int argc, char *argv[]){
 		printf("Setting up Upload with %s\n", tokuserin);
 		char *filename;
 		filename=strtok(NULL, " ");
-		printf("Attempting to open:%s\n",filename);
+		printf("Attempting to locally open:%s\n",filename);
 		fp = fopen(filename,"r");
 		if(fp != NULL){
-			printf("Success! Sending file\n");
+			printf("Success! attempting to send file\n");
+			
 			if(send(sockfd, userin, strlen(userin),0)==-1) {
         		perror("send");
+			}
+			if((bytes = recv(sockfd, receive, 99, 0)) == -1){
+				close(sockfd);
+				perror("Recv Error");
+				return -1;
+			}
+			receive[bytes]='\0';
+			if(strncmp(receive, "000xxx000", 9)==0){
+				printf("Error Opening Remote file\n");
+				continue;
 			}
 			while (fgets(sendbuf, 255, fp) != NULL){
 				if(send(sockfd, sendbuf, strlen(sendbuf), 0)<0){
